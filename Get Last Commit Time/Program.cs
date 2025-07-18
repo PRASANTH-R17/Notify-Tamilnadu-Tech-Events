@@ -2,20 +2,14 @@
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
-using Google.Apis.Sheets.v4.Data;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Globalization;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mail;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using System.Threading.Tasks;
-using static System.Net.WebRequestMethods;
-using System.Net;
-using System.Net.Mail;
+
+
 
 class Program
 {
@@ -48,7 +42,19 @@ class Program
             Console.WriteLine(jsonString);
             List<EventModel> updatedJsonEvents = JsonSerializer.Deserialize<List<EventModel>>(jsonString);
             await JsonStorageHelper.SaveEventsAsync(updatedJsonEvents, oldEventsJsonPath);
+
+            while (true)
+            {
+                await TrackNewEventsAsync();
+                await Task.Delay(TimeSpan.FromMinutes(30));
+            }
         }
+       
+    }
+
+
+    public static async Task TrackNewEventsAsync()
+    {
         // make these as seperate method and run in regular interval
         MetaData metaData = await JsonStorageHelper.GetConfigAsync(metaDataJsonPath);
         DateTime lastStoredCommitTime = metaData.LastCommitTime;
@@ -56,7 +62,7 @@ class Program
         if (currentCommitTime > lastStoredCommitTime)
         {
             Console.WriteLine("New commit detected!");
-            List<EventModel> newEvents =  GetNewEvents();
+            List<EventModel> newEvents = GetNewEvents();
 
 
             List<GoogleSheetData> userData = ReadSheet();
@@ -76,18 +82,13 @@ class Program
             //update last commit time
             metaData.LastCommitTime = currentCommitTime;
             JsonStorageHelper.SaveEventsAsync(metaData, metaDataJsonPath);
-
-
             // Fetch latest JSON and store new commit time
-
         }
         else
         {
             Console.WriteLine("No new commit.");
         }
     }
-
-        
 
 public static bool SendMail(List<GoogleSheetData> usersData, string subject, string htmlBody)
 {
